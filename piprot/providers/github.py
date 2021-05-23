@@ -42,11 +42,11 @@ def get_default_branch(repo):
     """returns the name of the default branch of the repo"""
     url = "{}/repos/{}".format(GITHUB_API_BASE, repo)
     response = requests.get(url)
-    if response.status_code == 200:
-        api_response = json.loads(response.text)
-        return api_response['default_branch']
-    else:
+    if response.status_code != 200:
         return 'master'
+
+    api_response = json.loads(response.text)
+    return api_response['default_branch']
 
 
 def get_requirements_file_from_url(url):
