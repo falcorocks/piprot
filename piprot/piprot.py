@@ -171,12 +171,11 @@ def get_version_and_release_date(requirement, version=None,
 
         response = response.json()
     except requests.HTTPError:
-        if version:
-            if verbose:
+        if verbose:
+            if version:
                 print('{} ({}) isn\'t available on PyPI '
                       'anymore!'.format(requirement, version))
-        else:
-            if verbose:
+            else:
                 print('{} isn\'t on PyPI. Check that the project '
                       'still exists!'.format(requirement))
         return None, None
@@ -195,25 +194,25 @@ def get_version_and_release_date(requirement, version=None,
         else:
             version = response['info'].get('stable_version')
 
-            if not version:
+        if not version:
+            versions = {
+                v: parse_version(v) for v in response['releases'].keys()
+                if not parse_version(v).is_prerelease()
+            }
+
+            # if we still don't have a version, let's pick up a prerelease one
+            if not versions:
                 versions = {
                     v: parse_version(v) for v in response['releases'].keys()
-                    if not parse_version(v).is_prerelease()
                 }
 
-                # if we still don't have a version, let's pick up a prerelease one
-                if not versions:
-                    versions = {
-                        v: parse_version(v) for v in response['releases'].keys()
-                    }
-
-                if versions:
-                    version = max(versions.items(), key=operator.itemgetter(1))[0]
-                    release_date = (
-                        response['releases'][str(version)][0]['upload_time']
-                    )
-                else:
-                    return None, None
+            if versions:
+                version = max(versions.items(), key=operator.itemgetter(1))[0]
+                release_date = (
+                    response['releases'][str(version)][0]['upload_time']
+                )
+            else:
+                return None, None
 
         return version, datetime.fromtimestamp(time.mktime(
             time.strptime(release_date, '%Y-%m-%dT%H:%M:%S')
@@ -306,7 +305,7 @@ def main(
 
         if latest_release_date and specified_release_date:
             time_delta = (latest_release_date - specified_release_date).days
-            total_time_delta = total_time_delta + time_delta
+            total_time_delta += time_delta
             max_outdated_time = max(time_delta, max_outdated_time)
 
             if verbose:
@@ -347,7 +346,7 @@ def main(
               "days out of date which is more than the allowed"
               "{} days.".format(verbatim_str, max_outdated_time, delay))
         sys.exit(1)
-    elif delay is not None and max_outdated_time <= int(delay):
+    elif delay is not None:
         print("{}All of your dependencies are at most {} "
               "days out of date.".format(verbatim_str, delay))
     else:
@@ -433,11 +432,8 @@ def piprot():
         sys.exit('--verbatim only allowed for single requirements files')
 
     verbose = True
-    if cli_args.quiet:
+    if cli_args.quiet or cli_args.verbatim:
         verbose = False
-    elif cli_args.verbatim:
-        verbose = False
-
     # call the main function to kick off the real work
     main(req_files=cli_args.file, verbose=verbose, outdated=cli_args.outdated,
          latest=cli_args.latest, verbatim=cli_args.verbatim,
